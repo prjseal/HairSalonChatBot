@@ -1,5 +1,6 @@
 var builder = require('botbuilder');
 var restify = require('restify');
+var request = require('request');
 
 //=========================================================
 // Bot Setup
@@ -31,10 +32,6 @@ bot.dialog('/', intents);
 intents.matches(/^make/i, [
     function (session) {
         session.beginDialog('/who');
-    },
-    function(session)
-    {
-        session.send('Ok %s I will book you in with %s', session.userData.name, session.userData.who)
     }
 ]);
 
@@ -102,6 +99,28 @@ bot.dialog('/who', [
     },
     function (session, results) {
         session.userData.who = results.response.entity;
+        builder.Prompts.choice(session, "Which day is best for you?", "Tuesday|Wednesday|Thursday|Friday|Saturday");
+    },
+    function (session, results) {
+        session.userData.day = results.response.entity;
+        builder.Prompts.choice(session, "What time of day would you prefer?", "10am to 12pm|12pm to 3pm|3pm to 5pm");
+    },
+    function (session, results) {
+        session.userData.time = results.response.entity;
+        session.send('Ok %s, I will try and book you in with %s on a %s at around %s', session.userData.name, session.userData.who, session.userData.day, session.userData.time);
+        session.send('We will be in touch to confirm');
+
+    // var data = '{"text": "This is a line of text.\nAnd this is another one."}';
+    //var json_obj = JSON.parse(data);
+    request.post({
+            headers: {'content-type':'application/json'},
+            url:process.env.SLACK_WEBHOOK_URL,
+            form:    '{"text": "Chat enquiry\nName: ' + session.userData.name + '\nWould like an appointment with ' + session.userData.who + ' on a ' + session.userData.day + ' at around ' + session.userData.time + '\nEmail: ' + session.userData.email + '\nPhone: ' + session.userData.phone + '"}'
+        },function(error, response, body){
+        console.log(body)
+    });
+
+
         session.endDialog();
     }
 ]);
